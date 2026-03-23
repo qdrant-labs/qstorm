@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use qstorm_core::{
+use qstorm::{
     BurstMetrics, Config, EmbeddedQuery, Embedder, QueryFile, SearchResults,
     config::{ProviderConfig, ProviderKind},
     runner::BenchmarkRunner,
@@ -303,22 +303,22 @@ impl App {
     }
 }
 
-fn create_provider(config: &ProviderConfig) -> Result<Box<dyn qstorm_core::SearchProvider>> {
+fn create_provider(config: &ProviderConfig) -> Result<Box<dyn qstorm::SearchProvider>> {
     let name = config.name.clone();
     match &config.provider {
         #[cfg(feature = "elasticsearch")]
         ProviderKind::Elasticsearch(c) => Ok(Box::new(
-            qstorm_core::providers::ElasticsearchProvider::new(name, c.clone()),
+            qstorm::providers::ElasticsearchProvider::new(name, c.clone()),
         )),
 
         #[cfg(feature = "qdrant")]
         ProviderKind::Qdrant(c) => Ok(Box::new(
-            qstorm_core::providers::QdrantProvider::new(name, c.clone()),
+            qstorm::providers::QdrantProvider::new(name, c.clone()),
         )),
 
         #[cfg(feature = "pgvector")]
         ProviderKind::Pgvector(c) => Ok(Box::new(
-            qstorm_core::providers::PgvectorProvider::new(name, c.clone()),
+            qstorm::providers::PgvectorProvider::new(name, c.clone()),
         )),
     }
 }

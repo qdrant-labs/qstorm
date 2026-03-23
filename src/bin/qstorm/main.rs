@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
         .init();
 
     // Load configuration
-    let config = qstorm_core::Config::from_file(&cli.config)?;
+    let config = qstorm::Config::from_file(&cli.config)?;
 
     // Validate queries file exists
     if !cli.queries.exists() {
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_headless(
-    config: qstorm_core::Config,
+    config: qstorm::Config,
     queries_path: &str,
     burst_count: usize,
     output: OutputFormat,
@@ -122,7 +122,7 @@ async fn run_headless(
     Ok(())
 }
 
-async fn run_tui(config: qstorm_core::Config, queries_path: &str) -> Result<()> {
+async fn run_tui(config: qstorm::Config, queries_path: &str) -> Result<()> {
     let mut app = app::App::new(config)?;
 
     // Load and embed queries before starting TUI

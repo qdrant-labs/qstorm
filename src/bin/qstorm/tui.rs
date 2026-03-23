@@ -7,7 +7,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use qstorm_core::{BurstMetrics, runner::BenchmarkRunner};
+use qstorm::{BurstMetrics, runner::BenchmarkRunner};
 use ratatui::prelude::*;
 use tokio::sync::oneshot;
 
@@ -41,7 +41,7 @@ pub async fn run(terminal: &mut Tui, mut app: App) -> Result<()> {
 
     // In-flight burst: runner is temporarily taken out of App
     let mut burst_rx: Option<
-        oneshot::Receiver<(BenchmarkRunner, std::result::Result<BurstMetrics, qstorm_core::Error>)>,
+        oneshot::Receiver<(BenchmarkRunner, std::result::Result<BurstMetrics, qstorm::Error>)>,
     > = None;
 
     loop {
