@@ -40,6 +40,7 @@ impl SearchProvider for QdrantProvider {
     fn capabilities(&self) -> Capabilities {
         Capabilities {
             vector_search: true,
+            keyword_search: self.config.text_field.is_some(),
             native_hybrid: self.config.text_field.is_some(),
             vector_dimension: None,
         }
@@ -120,6 +121,64 @@ impl SearchProvider for QdrantProvider {
 
         let response = client
             .search_points(search)
+            .await
+            .map_err(|e| Error::QueryExecution(e.to_string()))?;
+
+        let results: Vec<SearchResult> = response
+            .result
+            .into_iter()
+            .map(|point| {
+                let id = match point.id {
+                    Some(PointId {
+                        point_id_options: Some(id),
+                    }) => {
+                        use qdrant_client::qdrant::point_id::PointIdOptions;
+                        match id {
+                            PointIdOptions::Num(n) => n.to_string(),
+                            PointIdOptions::Uuid(s) => s,
+                        }
+                    }
+                    _ => "unknown".to_string(),
+                };
+
+                let payload = if params.include_payload {
+                    Some(serde_json::to_value(&point.payload).unwrap_or_default())
+                } else {
+                    None
+                };
+
+                SearchResult {
+                    id,
+                    score: point.score,
+                    payload,
+                }
+            })
+            .collect();
+
+        Ok(SearchResults::new(results))
+    }
+
+    async fn keyword_search(
+        &self,
+        text: &str,
+        params: &SearchParams,
+    ) -> Result<SearchResults> {
+        let client = self.client()?;
+
+        let text_field = self.config.text_field.as_deref().ok_or_else(|| {
+            Error::Config("Keyword search requires 'text_field' to be set in provider config".into())
+        })?;
+
+        let limit = params.top_k as u64;
+
+        let query = QueryPointsBuilder::new(&self.config.collection_name)
+            .query(Query::new_nearest(Document::new(text, "qdrant/bm25")))
+            .using(text_field.to_string())
+            .with_payload(true)
+            .limit(limit);
+
+        let response = client
+            .query(query)
             .await
             .map_err(|e| Error::QueryExecution(e.to_string()))?;
 

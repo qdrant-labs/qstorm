@@ -7,6 +7,7 @@ use crate::types::{SearchParams, SearchResults};
 #[derive(Debug, Clone, Default)]
 pub struct Capabilities {
     pub vector_search: bool,
+    pub keyword_search: bool,
     pub native_hybrid: bool,
     pub vector_dimension: Option<usize>,
 }
@@ -31,6 +32,18 @@ pub trait SearchProvider: Send + Sync {
 
     /// Execute a vector similarity search
     async fn vector_search(&self, vector: &[f32], params: &SearchParams) -> Result<SearchResults>;
+
+    /// Execute a keyword/BM25/full-text search (no vectors)
+    async fn keyword_search(
+        &self,
+        _text: &str,
+        _params: &SearchParams,
+    ) -> Result<SearchResults> {
+        Err(Error::Unsupported(format!(
+            "Provider '{}' does not support keyword search",
+            self.name()
+        )))
+    }
 
     /// Execute a hybrid search (text + vector, provider handles fusion)
     async fn hybrid_search(

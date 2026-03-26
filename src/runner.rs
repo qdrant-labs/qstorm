@@ -114,6 +114,9 @@ impl BenchmarkRunner {
                 let start = Instant::now();
                 let result = match mode {
                     SearchMode::Vector => provider.vector_search(&query.vector, &params).await,
+                    SearchMode::Keyword => {
+                        provider.keyword_search(&query.text, &params).await
+                    }
                     SearchMode::Hybrid => {
                         provider
                             .hybrid_search(&query.text, &query.vector, &params)
@@ -164,6 +167,7 @@ impl BenchmarkRunner {
     ) -> crate::error::Result<crate::types::SearchResults> {
         match self.config.mode {
             SearchMode::Vector => self.provider.vector_search(&query.vector, params).await,
+            SearchMode::Keyword => self.provider.keyword_search(&query.text, params).await,
             SearchMode::Hybrid => {
                 self.provider
                     .hybrid_search(&query.text, &query.vector, params)

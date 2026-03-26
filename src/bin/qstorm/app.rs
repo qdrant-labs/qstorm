@@ -144,7 +144,7 @@ impl App {
         self.runner.is_some()
     }
 
-    /// Load queries from file and embed them
+    /// Load queries from file and embed them (skips embedding for keyword-only mode)
     pub async fn load_and_embed_queries(&mut self, query_file_path: &str) -> Result<()> {
         self.status_message = Some("Loading queries...".into());
 
@@ -153,16 +153,29 @@ impl App {
             return Err(anyhow!("Query file contains no queries"));
         }
 
-        self.status_message = Some(format!("Embedding {} queries...", query_file.queries.len()));
+        if self.config.benchmark.mode.needs_embeddings() {
+            self.status_message =
+                Some(format!("Embedding {} queries...", query_file.queries.len()));
 
-        let embedding_config = self.config.embedding.clone().unwrap_or_default();
-        let embedder = Embedder::from_config(&embedding_config)
-            .map_err(|e| anyhow!("{e}"))?;
-        self.queries = embedder
-            .embed_queries(&query_file.queries)
-            .await
-            .map_err(|e| anyhow!("{e}"))?;
-        self.embedder = Some(embedder);
+            let embedding_config = self.config.embedding.clone().unwrap_or_default();
+            let embedder =
+                Embedder::from_config(&embedding_config).map_err(|e| anyhow!("{e}"))?;
+            self.queries = embedder
+                .embed_queries(&query_file.queries)
+                .await
+                .map_err(|e| anyhow!("{e}"))?;
+            self.embedder = Some(embedder);
+        } else {
+            tracing::info!("Keyword-only mode, skipping embedding generation");
+            self.queries = query_file
+                .queries
+                .into_iter()
+                .map(|text| EmbeddedQuery {
+                    text,
+                    vector: vec![],
+                })
+                .collect();
+        }
 
         self.status_message = Some(format!("Loaded {} queries", self.queries.len()));
         Ok(())
@@ -265,19 +278,26 @@ impl App {
             return Ok(());
         }
 
-        let embedder = self
-            .embedder
-            .as_ref()
-            .ok_or_else(|| anyhow!("No embedder configured"))?;
+        let eq = if self.config.benchmark.mode.needs_embeddings() {
+            let embedder = self
+                .embedder
+                .as_ref()
+                .ok_or_else(|| anyhow!("No embedder configured"))?;
 
-        let mut embedded = embedder
-            .embed_queries(&[text])
-            .await
-            .map_err(|e| anyhow!("{e}"))?;
+            let mut embedded = embedder
+                .embed_queries(&[text])
+                .await
+                .map_err(|e| anyhow!("{e}"))?;
 
-        let eq = embedded
-            .pop()
-            .ok_or_else(|| anyhow!("Embedding returned no results"))?;
+            embedded
+                .pop()
+                .ok_or_else(|| anyhow!("Embedding returned no results"))?
+        } else {
+            EmbeddedQuery {
+                text,
+                vector: vec![],
+            }
+        };
 
         let runner = self
             .runner

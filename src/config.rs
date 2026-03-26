@@ -108,8 +108,17 @@ pub enum SearchMode {
     /// Pure vector similarity search
     #[default]
     Vector,
+    /// Pure text search (BM25 or full-text)
+    Keyword,
     /// Hybrid search (text + vector, provider handles fusion)
     Hybrid,
+}
+
+impl SearchMode {
+    /// Whether this mode requires embedding generation
+    pub fn needs_embeddings(&self) -> bool {
+        matches!(self, SearchMode::Vector | SearchMode::Hybrid)
+    }
 }
 
 /// Benchmark execution settings

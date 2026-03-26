@@ -38,6 +38,7 @@ impl SearchProvider for PgvectorProvider {
     fn capabilities(&self) -> Capabilities {
         Capabilities {
             vector_search: true,
+            keyword_search: self.config.text_field.is_some(),
             native_hybrid: self.config.text_field.is_some(),
             vector_dimension: None,
         }
@@ -130,6 +131,70 @@ impl SearchProvider for PgvectorProvider {
                 Some(SearchResult {
                     id,
                     score: score as f32,
+                    payload,
+                })
+            })
+            .collect();
+
+        Ok(SearchResults::new(results))
+    }
+
+    async fn keyword_search(
+        &self,
+        text: &str,
+        params: &SearchParams,
+    ) -> Result<SearchResults> {
+        let pool = self.pool()?;
+
+        let text_field = self.config.text_field.as_deref().ok_or_else(|| {
+            Error::Config(
+                "Keyword search requires 'text_field' to be set in provider config".into(),
+            )
+        })?;
+        let table = &self.config.table_name;
+        let limit = params.top_k as i64;
+
+        let query = if params.include_payload {
+            format!(
+                "SELECT id::text, \
+                 ts_rank(to_tsvector('english', {text_field}), plainto_tsquery('english', $1)) as score, \
+                 to_jsonb(t) - 'id' as payload \
+                 FROM {table} t \
+                 WHERE to_tsvector('english', {text_field}) @@ plainto_tsquery('english', $1) \
+                 ORDER BY score DESC \
+                 LIMIT $2"
+            )
+        } else {
+            format!(
+                "SELECT id::text, \
+                 ts_rank(to_tsvector('english', {text_field}), plainto_tsquery('english', $1)) as score \
+                 FROM {table} \
+                 WHERE to_tsvector('english', {text_field}) @@ plainto_tsquery('english', $1) \
+                 ORDER BY score DESC \
+                 LIMIT $2"
+            )
+        };
+
+        let rows = sqlx::query(&query)
+            .bind(text)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| Error::QueryExecution(e.to_string()))?;
+
+        let results: Vec<SearchResult> = rows
+            .iter()
+            .filter_map(|row| {
+                let id: String = row.try_get("id").ok()?;
+                let score: f32 = row.try_get("score").ok()?;
+                let payload = if params.include_payload {
+                    row.try_get::<serde_json::Value, _>("payload").ok()
+                } else {
+                    None
+                };
+                Some(SearchResult {
+                    id,
+                    score,
                     payload,
                 })
             })

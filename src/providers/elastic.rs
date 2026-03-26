@@ -41,6 +41,7 @@ impl SearchProvider for ElasticsearchProvider {
     fn capabilities(&self) -> Capabilities {
         Capabilities {
             vector_search: true,
+            keyword_search: true,
             native_hybrid: true,
             vector_dimension: None,
         }
@@ -134,6 +135,75 @@ impl SearchProvider for ElasticsearchProvider {
             let error_body = response.text().await.unwrap_or_default();
             return Err(Error::QueryExecution(format!(
                 "Search failed: {}",
+                error_body
+            )));
+        }
+
+        let response_body: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| Error::InvalidResponse(e.to_string()))?;
+
+        let took_ms = response_body["took"].as_u64();
+        let total_hits = response_body["hits"]["total"]["value"].as_u64();
+
+        let hits = response_body["hits"]["hits"]
+            .as_array()
+            .ok_or_else(|| Error::InvalidResponse("Missing hits array".into()))?;
+
+        let results: Vec<SearchResult> = hits
+            .iter()
+            .filter_map(|hit| {
+                let id = hit["_id"].as_str()?.to_string();
+                let score = hit["_score"].as_f64().unwrap_or(0.0) as f32;
+                let payload = if params.include_payload {
+                    hit.get("_source").cloned()
+                } else {
+                    None
+                };
+                Some(SearchResult { id, score, payload })
+            })
+            .collect();
+
+        let mut search_results = SearchResults::new(results);
+        if let Some(took) = took_ms {
+            search_results = search_results.with_took(took);
+        }
+        if let Some(total) = total_hits {
+            search_results = search_results.with_total_hits(total);
+        }
+
+        Ok(search_results)
+    }
+
+    async fn keyword_search(
+        &self,
+        text: &str,
+        params: &SearchParams,
+    ) -> Result<SearchResults> {
+        let client = self.client()?;
+        let text_field = self.config.text_field.as_deref().unwrap_or("text");
+
+        let body = json!({
+            "size": params.top_k,
+            "query": {
+                "match": {
+                    text_field: text
+                }
+            }
+        });
+
+        let response = client
+            .search(SearchParts::Index(&[&self.config.index_name]))
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| Error::QueryExecution(e.to_string()))?;
+
+        if !response.status_code().is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            return Err(Error::QueryExecution(format!(
+                "Keyword search failed: {}",
                 error_body
             )));
         }
