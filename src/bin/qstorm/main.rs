@@ -8,9 +8,11 @@ use anyhow::{Result, anyhow};
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
+const QSTORM_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Parser)]
 #[command(name = "qstorm")]
-#[command(about = "Vector search load testing tool", long_about = None)]
+#[command(about = "Vector search load testing tool", long_about = None, version = QSTORM_VERSION)]
 struct Cli {
     /// Path to configuration file
     #[arg(short, long, default_value = "qstorm.yaml")]
