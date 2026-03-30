@@ -52,6 +52,8 @@ pub enum ProviderKind {
     Qdrant(QdrantConfig),
     #[cfg(feature = "pgvector")]
     Pgvector(PgvectorConfig),
+    #[cfg(feature = "opensearch")]
+    OpenSearch(OpenSearchConfig),
 }
 
 /// Qdrant provider configuration
@@ -84,6 +86,29 @@ pub struct ElasticsearchConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ElasticsearchCredentials {
+    Basic { username: String, password: String },
+    ApiKey { key: String },
+    Bearer { token: String },
+}
+
+/// OpenSearch provider configuration
+#[cfg(feature = "opensearch")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenSearchConfig {
+    pub url: String,
+    #[serde(default)]
+    pub credentials: Option<OpenSearchCredentials>,
+    pub index_name: String,
+    pub vector_field: Option<String>,
+    pub text_field: Option<String>,
+    #[serde(default)]
+    pub skip_cert: bool, // default for bool is false
+}
+
+#[cfg(feature = "opensearch")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum OpenSearchCredentials {
     Basic { username: String, password: String },
     ApiKey { key: String },
     Bearer { token: String },

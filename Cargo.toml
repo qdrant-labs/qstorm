@@ -21,7 +21,8 @@ qdrant = ["dep:qdrant-client"]
 embeddings = ["dep:fastembed"]
 openai-embeddings = ["dep:async-openai", "dep:indicatif"]
 pgvector = ["dep:sqlx", "dep:pgvector"]
-all-providers = ["elasticsearch", "qdrant", "pgvector"]
+opensearch = ["dep:opensearch"]
+all-providers = ["elasticsearch", "qdrant", "pgvector", "opensearch"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -45,6 +46,7 @@ futures = "0.3"
 # provider sdks (optional)
 elasticsearch = { version = "9.1.0-alpha.1", optional = true }
 qdrant-client = { version = "1.16.0", optional = true }
+opensearch = { version = "2.4.0", optional = true }
 
 # pgvector (optional)
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"], optional = true }

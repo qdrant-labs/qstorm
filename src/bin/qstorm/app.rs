@@ -340,5 +340,10 @@ fn create_provider(config: &ProviderConfig) -> Result<Box<dyn qstorm::SearchProv
         ProviderKind::Pgvector(c) => Ok(Box::new(
             qstorm::providers::PgvectorProvider::new(name, c.clone()),
         )),
+
+        #[cfg(feature = "opensearch")]
+        ProviderKind::OpenSearch(c) => Ok(Box::new(
+            qstorm::providers::OpenSearchProvider::new(name, c.clone()),
+        )),
     }
 }

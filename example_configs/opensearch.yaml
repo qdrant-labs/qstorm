@@ -1,0 +1,33 @@
+# qstorm configuration example for OpenSearch
+
+provider:
+  name: "opensearch-local"
+  type: opensearch
+  url: "https://localhost:9200"
+  index_name: "logs"
+  skip_cert: true   # Set to true if using self-signed certificates
+  credentials:
+    type: basic
+    username: "admin"
+    password: "SecureP@ssword1"
+  vector_field: "dense"   # dense_vector field name
+  text_field: "message"   # text field for BM25 (used in hybrid mode)
+
+benchmark:
+  mode: hybrid             # "vector" (default) or "hybrid"
+  warmup_iterations: 10
+  burst_size: 100
+  concurrency: 10
+  timeout_ms: 5000
+  top_k: 10
+
+embedding:
+    model: "openai/text-embedding-3-small"
+    dimensions: 1536
+
+# Embedding model for converting text queries to vectors
+# embedding:
+#   model: "BAAI/bge-small-en-v1.5"  # 384 dimensions
+  # Other options:
+  # model: "BAAI/bge-base-en-v1.5"   # 768 dimensions
+  # model: "all-MiniLM-L6-v2"        # 384 dimensions
