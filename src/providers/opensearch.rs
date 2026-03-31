@@ -121,11 +121,13 @@ impl SearchProvider for OpenSearchProvider {
 
         let body = json!({
             "size": params.top_k,
-            "knn": {
-                "field": vector_field,
-                "query_vector": vector,
-                "k": params.top_k,
-                "num_candidates": params.top_k * 10
+            "query": {
+                "knn": {
+                    vector_field: {
+                        "vector": vector,
+                        "k": params.top_k
+                    }
+                }
             }
         });
 
@@ -250,7 +252,7 @@ impl SearchProvider for OpenSearchProvider {
         Ok(search_results)
     }
 
-    async fn hybrid_search(
+async fn hybrid_search(
         &self,
         text: &str,
         vector: &[f32],
@@ -260,22 +262,27 @@ impl SearchProvider for OpenSearchProvider {
         let text_field = self.config.text_field.as_deref().unwrap_or("text");
         let vector_field = self.config.vector_field.as_deref().unwrap_or("vector");
 
-        // kNN + BM25 match query - Elasticsearch fuses via RRF by default
+        // The correct OpenSearch Hybrid Syntax
         let body = json!({
             "size": params.top_k,
             "query": {
-                "match": {
-                    text_field: text
+                "hybrid": {
+                    "queries": [
+                        {
+                            "match": {
+                                text_field: text
+                            }
+                        },
+                        {
+                            "knn": {
+                                vector_field: {
+                                    "vector": vector,
+                                    "k": params.top_k
+                                }
+                            }
+                        }
+                    ]
                 }
-            },
-            "knn": {
-                "field": vector_field,
-                "query_vector": vector,
-                "k": params.top_k,
-                "num_candidates": params.top_k * 10
-            },
-            "rank": {
-                "rrf": {}
             }
         });
 
@@ -288,6 +295,7 @@ impl SearchProvider for OpenSearchProvider {
 
         if !response.status_code().is_success() {
             let error_body = response.text().await.unwrap_or_default();
+            
             return Err(Error::QueryExecution(format!(
                 "Hybrid search failed: {}",
                 error_body
