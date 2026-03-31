@@ -1,6 +1,6 @@
 [package]
 name = "qstorm"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 authors = ["Nathan Leroy"]
